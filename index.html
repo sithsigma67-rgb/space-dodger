@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Arcade Dodge</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            margin-bottom: 5px;
+            color: #38bdf8;
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #94a3b8;
+        }
+
+        #gameCanvas {
+            border: 4px solid #38bdf8;
+            background-color: #020617;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+            border-radius: 4px;
+        }
+
+        .controls-hint {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>SPACE DODGER</h1>
+    <p>Catch Stars ⭐ | Dodge Asteroids ☄️</p>
+
+    <canvas id="gameCanvas" width="400" height="500"></canvas>
+
+    <div class="controls-hint">
+        Use <strong>Left Arrow</strong> and <strong>Right Arrow</strong> to move. Press <strong>Spacebar</strong> to restart when game over.
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let score = 0;
+        let gameOver = false;
+        let frameCount = 0;
+
+        // Player setup
+        const player = {
+            x: canvas.width / 2 - 20,
+            y: canvas.height - 40,
+            width: 40,
+            height: 20,
+            speed: 6,
+            dx: 0
+        };
+
+        // Game objects
+        const hazards = [];
+        const stars = [];
+
+        // Keyboard Controls
+        const keys = {
+            left: false,
+            right: false
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+            if (e.key === ' ' && gameOver) restartGame();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+        });
+
+        // Spawn items
+        function spawnHazard() {
+            const size = Math.random() * 20 + 20;
+            hazards.push({
+                x: Math.random() * (canvas.width - size),
+                y: -size,
+                width: size,
+                height: size,
+                speed: Math.random() * 2 + 3
+            });
+        }
+
+        function spawnStar() {
+            stars.push({
+                x: Math.random() * (canvas.width - 20),
+                y: -20,
+                width: 20,
+                height: 20,
+                speed: 2.5
+            });
+        }
+
+        // Collision detection helper
+        function isColliding(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
+        }
+
+        // Main game loop
+        function update() {
+            if (gameOver) return;
+
+            frameCount++;
+
+            // Move player
+            if (keys.left && player.x > 0) {
+                player.x -= player.speed;
+            }
+            if (keys.right && player.x + player.width < canvas.width) {
+                player.x += player.speed;
+            }
+
+            // Spawn hazards and stars periodically
+            if (frameCount % 45 === 0) spawnHazard();
+            if (frameCount % 120 === 0) spawnStar();
+
+            // Update hazards
+            for (let i = hazards.length - 1; i >= 0; i--) {
+                hazards[i].y += hazards[i].speed;
+
+                // Check collision with player
+                if (isColliding(player, hazards[i])) {
+                    gameOver = true;
+                }
+
+                // Remove off-screen hazards
+                if (hazards[i].y > canvas.height) {
+                    hazards.splice(i, 1);
+                }
+            }
+
+            // Update stars
+            for (let i = stars.length - 1; i >= 0; i--) {
+                stars[i].y += stars[i].speed;
+
+                // Catch star
+                if (isColliding(player, stars[i])) {
+                    score += 10;
+                    stars.splice(i, 1);
+                    continue;
+                }
+
+                // Remove off-screen stars
+                if (stars[i].y > canvas.height) {
+                    stars.splice(i, 1);
+                }
+            }
+
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        // Render graphics
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw player (Green Ship)
+            ctx.fillStyle = '#4ade80';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            // Cockpit detail
+            ctx.fillStyle = '#22c55e';
+            ctx.fillRect(player.x + 12, player.y - 6, 16, 6);
+
+            // Draw hazards (Red Asteroids)
+            ctx.fillStyle = '#f87171';
+            hazards.forEach(h => {
+                ctx.fillRect(h.x, h.y, h.width, h.height);
+            });
+
+            // Draw stars (Yellow Collectibles)
+            ctx.fillStyle = '#facc15';
+            stars.forEach(s => {
+                ctx.beginPath();
+                ctx.arc(s.x + 10, s.y + 10, 8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw Score
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '18px Arial';
+            ctx.fillText(`Score: ${score}`, 15, 30);
+
+            // Draw Game Over Screen
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#ef4444';
+                ctx.font = '30px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 20);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px Arial';
+                ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 15);
+                ctx.fillText('Press SPACE to Play Again', canvas.width / 2, canvas.height / 2 + 50);
+                ctx.textAlign = 'left'; // reset alignment
+            }
+        }
+
+        function restartGame() {
+            score = 0;
+            gameOver = false;
+            frameCount = 0;
+            hazards.length = 0;
+            stars.length = 0;
+            player.x = canvas.width / 2 - 20;
+            update();
+        }
+
+        // Start game loop
+        update();
+    </script>
+</body>
+</html>
